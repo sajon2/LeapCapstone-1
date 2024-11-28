@@ -1,29 +1,20 @@
-import React, { useState, useEffect, forwardRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Box, Heading, Flex, Text, VStack, Button, Divider, Modal, ModalOverlay, ModalContent, ModalHeader, ModalFooter, ModalBody, ModalCloseButton, Input, useDisclosure, Image, IconButton } from '@chakra-ui/react';
-import { ArrowBackIcon, ChevronDownIcon, ChevronUpIcon } from '@chakra-ui/icons';
+import { ChevronDownIcon, ChevronUpIcon } from '@chakra-ui/icons';
 import axios from 'axios';
 import { useAuth } from '../../AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 
-const CustomDateInput = forwardRef(({ value, onClick }, ref) => (
-  <Input
-    placeholder="Date of Birth"
-    value={value}
-    onClick={onClick}
-    readOnly
-    ref={ref}
-  />
-));
-
 const ManageEmployees = () => {
+  const { barId } = useParams(); // Extract barId from the URL
   const [employees, setEmployees] = useState([]);
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [dateOfBirth, setDateOfBirth] = useState(new Date());
-  const [profilePicture, setProfilePicture] = useState(null);
+  const [profilePicture, setProfilePicture] = useState(null); // File object
   const [message, setMessage] = useState('');
   const [expandedEmployee, setExpandedEmployee] = useState(null);
   const { token } = useAuth();
@@ -31,21 +22,25 @@ const ManageEmployees = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const fetchEmployees = async () => {
-      try {
-        const response = await axios.get('http://localhost:5001/api/employees', {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-        setEmployees(response.data);
-      } catch (error) {
-        console.error('Error fetching employees:', error);
-      }
-    };
+    if (!barId) {
+      console.error('Bar ID is not defined.');
+      return;
+    }
 
-    fetchEmployees();
-  }, [token]);
+    
+  const fetchEmployees = async () => {
+    try {
+      const response = await axios.get(`http://localhost:5001/api/employees/${barId}/employees`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setEmployees(response.data);
+    } catch (error) {
+      console.error('Error fetching employees:', error.message);
+    }
+  };
+
+  fetchEmployees();
+}, [barId, token]);
 
   const resetForm = () => {
     setFullName('');
@@ -56,32 +51,54 @@ const ManageEmployees = () => {
     setMessage('');
   };
 
+  const handleFileUpload = (e) => {
+    const file = e.target.files[0];
+    setProfilePicture(file); // Save the file object directly
+  };
+  const handleDeleteEmployee = async (employeeId) => {
+    if (!window.confirm('Are you sure you want to delete this employee?')) {
+      return;
+    }
+  
+    try {
+      await axios.delete(`http://localhost:5001/api/employees/${employeeId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setEmployees(employees.filter((employee) => employee._id !== employeeId));
+      setMessage('Employee deleted successfully!');
+    } catch (error) {
+      console.error('Error deleting employee:', error.response?.data || error.message);
+      setMessage('Error deleting employee.');
+    }
+  };
+  
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    const employeeData = {
-      fullName,
-      email,
-      password,
-      dateOfBirth: dateOfBirth.toISOString(), // Format the date of birth properly
-      profilePicture // For now, we'll handle this as a string URL or base64, update backend if necessary
-    };
-
-    console.log('Employee Data:', employeeData);
+    const formData = new FormData();
+    formData.append('fullName', fullName);
+    formData.append('email', email);
+    formData.append('password', password);
+    formData.append('dateOfBirth', dateOfBirth.toISOString());
+    formData.append('barId', barId);
+    if (profilePicture) {
+      formData.append('profilePicture', profilePicture);
+    }
 
     try {
-      const response = await axios.post('http://localhost:5001/api/employees', employeeData, {
+      const response = await axios.post('http://localhost:5001/api/employees', formData, {
         headers: {
-          'Authorization': `Bearer ${token}`
-        }
+          'Content-Type': 'multipart/form-data',
+          Authorization: `Bearer ${token}`,
+        },
       });
       setMessage('Employee created successfully!');
       setEmployees([...employees, response.data.employee]);
       resetForm();
       onClose();
     } catch (error) {
-      setMessage('Error creating employee.');
       console.error('Error creating employee:', error.response?.data || error.message);
+      setMessage('Error creating employee.');
     }
   };
 
@@ -98,8 +115,8 @@ const ManageEmployees = () => {
       </Box>
 
       {/* Middle Section */}
-      <Flex flex="1" direction={{ base: "column", md: "row" }} bg="white">
-        <Box bg="gray.900" color="white" width={{ base: "100%", md: "250px" }} py={6} px={4} display="flex" flexDirection="column" alignItems="start">
+      <Flex flex="1" direction={{ base: 'column', md: 'row' }} bg="white">
+        <Box bg="gray.900" color="white" width={{ base: '100%', md: '250px' }} py={6} px={4} display="flex" flexDirection="column" alignItems="start">
           <Text fontSize="lg" fontWeight="bold" mb={4}>Navigation</Text>
           <VStack align="start" spacing={4} w="full">
             <Button onClick={onOpen} variant="link" colorScheme="whiteAlpha">Create Employee</Button>
@@ -109,30 +126,41 @@ const ManageEmployees = () => {
           <VStack spacing={4} w="full" maxW="xl" align="stretch">
             <Text fontSize="xl" fontWeight="bold" color="gray.700">Employees List</Text>
             <Divider />
-            {employees.map(employee => (
-              <Flex key={employee._id} p={4} shadow="md" borderWidth="1px" width="100%" alignItems="center">
-                {employee.profilePicture && (
-                  <Image src={`http://localhost:5001${employee.profilePicture}`} alt={employee.fullName} boxSize="100px" objectFit="cover" marginRight={4} />
-                )}
-                <Box flex="1">
-                  <Heading fontSize="xl">{employee.fullName}</Heading>
-                  <Text mt={2}><strong>Email:</strong> {employee.email}</Text>
-                  <Text mt={2}><strong>Employee ID:</strong> {employee.employeeId}</Text>
-                  {expandedEmployee === employee._id && (
-                    <>
-                      <Text mt={2}><strong>Date of Birth:</strong> {new Date(employee.dateOfBirth).toLocaleDateString()}</Text>
-                      {/* Add other relevant employee details here */}
-                    </>
-                  )}
-                </Box>
-                <IconButton
-                  icon={expandedEmployee === employee._id ? <ChevronUpIcon /> : <ChevronDownIcon />}
-                  onClick={() => toggleEmployeeDetails(employee._id)}
-                  aria-label="Toggle Employee Details"
-                  ml={4}
-                />
-              </Flex>
-            ))}
+            {employees.map((employee) => (
+  <Flex key={employee._id} p={4} shadow="md" borderWidth="1px" width="100%" alignItems="center">
+    {employee.profilePicture && (
+      <Image
+        src={`http://localhost:5001${employee.profilePicture}`}
+        alt={employee.fullName}
+        boxSize="100px"
+        objectFit="cover"
+        marginRight={4}
+      />
+    )}
+    <Box flex="1">
+      <Heading fontSize="xl">{employee.fullName}</Heading>
+      <Text mt={2}><strong>Email:</strong> {employee.email}</Text>
+      <Text mt={2}><strong>Employee ID:</strong> {employee.employeeId}</Text>
+      {expandedEmployee === employee._id && (
+        <Text mt={2}><strong>Date of Birth:</strong> {new Date(employee.dateOfBirth).toLocaleDateString()}</Text>
+      )}
+    </Box>
+    <IconButton
+      icon={expandedEmployee === employee._id ? <ChevronUpIcon /> : <ChevronDownIcon />}
+      onClick={() => toggleEmployeeDetails(employee._id)}
+      aria-label="Toggle Employee Details"
+      ml={4}
+    />
+    <Button
+      colorScheme="red"
+      onClick={() => handleDeleteEmployee(employee._id)}
+      ml={4}
+    >
+      Delete
+    </Button>
+  </Flex>
+))}
+
           </VStack>
         </Flex>
       </Flex>
@@ -151,13 +179,29 @@ const ManageEmployees = () => {
           <ModalBody>
             <form onSubmit={handleSubmit} style={{ width: '100%' }}>
               <Box mb={4}>
-                <Input placeholder="Full Name" value={fullName} onChange={(e) => setFullName(e.target.value)} required />
+                <Input
+                  placeholder="Full Name"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  required
+                />
               </Box>
               <Box mb={4}>
-                <Input placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+                <Input
+                  placeholder="Email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                />
               </Box>
               <Box mb={4}>
-                <Input placeholder="Password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+                <Input
+                  placeholder="Password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                />
               </Box>
               <Box mb={4}>
                 <DatePicker
@@ -168,11 +212,10 @@ const ManageEmployees = () => {
                   scrollableYearDropdown
                   yearDropdownItemNumber={15}
                   maxDate={new Date()}
-                  customInput={<CustomDateInput />}
                 />
               </Box>
               <Box mb={4}>
-                <Input type="file" onChange={(e) => setProfilePicture(e.target.files[0])} />
+                <Input type="file" onChange={handleFileUpload} />
               </Box>
               <Button type="submit" colorScheme="blue">Create Employee</Button>
             </form>

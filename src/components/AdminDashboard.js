@@ -156,12 +156,12 @@ const AdminDashboard = () => {
         <Box bg="gray.900" color="white" width={{ base: "100%", md: "250px" }} py={6} px={4} display="flex" flexDirection="column" alignItems="start">
           <Text fontSize="lg" fontWeight="bold" mb={4}>Navigation</Text>
           <VStack align="start" spacing={4} w="full">
-            <Button onClick={onOpen} variant="link" colorScheme="whiteAlpha">Create Bar</Button>
+            <Button onClick={onOpen} variant="link" colorScheme="whiteAlpha">Create Venue</Button>
           </VStack>
         </Box>
         <Flex flex="1" direction="column" align="center" justify="center" py={10} px={6}>
           <VStack spacing={4} w="full" maxW="xl" align="stretch">
-            <Text fontSize="xl" fontWeight="bold" color="gray.700">Bars List</Text>
+            <Text fontSize="xl" fontWeight="bold" color="gray.700">Your Venues</Text>
             <Divider />
             {bars.map(bar => (
               <Flex key={bar._id} p={4} shadow="md" borderWidth="1px" width="100%" alignItems="center">
@@ -174,7 +174,7 @@ const AdminDashboard = () => {
                   <Text mt={2}><strong>Description:</strong> {bar.description}</Text>
                 </Box>
                 <Button onClick={() => handleEdit(bar)} colorScheme="blue" ml={4}>Edit</Button>
-                <Button onClick={() => handleViewBar(bar._id)} colorScheme="teal" ml={4}>View Bar</Button>
+                <Button onClick={() => handleViewBar(bar._id)} colorScheme="teal" ml={4}>View Venue</Button>
               </Flex>
             ))}
           </VStack>
@@ -190,12 +190,12 @@ const AdminDashboard = () => {
       <Modal isOpen={isOpen} onClose={handleClose}>
         <ModalOverlay />
         <ModalContent>
-          <ModalHeader>Create a New Bar</ModalHeader>
+          <ModalHeader>Create a New Venue</ModalHeader>
           <ModalCloseButton />
           <ModalBody>
             <form onSubmit={handleSubmit} style={{ width: '100%' }}>
               <Box mb={4}>
-                <Input placeholder="Bar Name" value={name} onChange={(e) => setName(e.target.value)} required />
+                <Input placeholder="Venue Name" value={name} onChange={(e) => setName(e.target.value)} required />
               </Box>
               <Box mb={4}>
                 <Input placeholder="Location" value={location} onChange={(e) => setLocation(e.target.value)} required />
@@ -206,7 +206,7 @@ const AdminDashboard = () => {
               <Box mb={4}>
                 <Input type="file" onChange={(e) => setImage(e.target.files[0])} required />
               </Box>
-              <Button type="submit" colorScheme="blue">Create Bar</Button>
+              <Button type="submit" colorScheme="blue">Create New Venue</Button>
             </form>
             {message && (
               <Text mt={4} color={message.includes('successfully') ? 'green.500' : 'red.500'}>
@@ -224,12 +224,12 @@ const AdminDashboard = () => {
       <Modal isOpen={isEditOpen} onClose={handleEditClose}>
         <ModalOverlay />
         <ModalContent>
-          <ModalHeader>Edit Bar</ModalHeader>
+          <ModalHeader>Edit Venue</ModalHeader>
           <ModalCloseButton />
           <ModalBody>
             <form onSubmit={handleEditSubmit} style={{ width: '100%' }}>
               <Box mb={4}>
-                <Input placeholder="Bar Name" value={name} onChange={(e) => setName(e.target.value)} required />
+                <Input placeholder="Venue Name" value={name} onChange={(e) => setName(e.target.value)} required />
               </Box>
               <Box mb={4}>
                 <Input placeholder="Location" value={location} onChange={(e) => setLocation(e.target.value)} required />
@@ -240,7 +240,7 @@ const AdminDashboard = () => {
               <Box mb={4}>
                 <Input type="file" onChange={(e) => setImage(e.target.files[0])} />
               </Box>
-              <Button type="submit" colorScheme="blue">Update Bar</Button>
+              <Button type="submit" colorScheme="blue">Update Venue</Button>
             </form>
             {message && (
               <Text mt={4} color={message.includes('successfully') ? 'green.500' : 'red.500'}>

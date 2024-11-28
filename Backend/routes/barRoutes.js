@@ -163,7 +163,6 @@ router.get('/:id', auth, async (req, res) => {
   }
 });
 
-// Get employees for a specific bar
 router.get('/:barId/employees', auth, isAdmin, async (req, res) => {
   try {
     const bar = await Bar.findById(req.params.barId);
@@ -171,13 +170,18 @@ router.get('/:barId/employees', auth, isAdmin, async (req, res) => {
       return res.status(404).json({ msg: 'Bar not found' });
     }
 
-    // Assuming employees are stored in the User model and have a reference to the bar
-    const employees = await User.find({ barId: req.params.barId });
+    if (bar.createdBy.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ msg: 'Unauthorized access to this bar' });
+    }
+
+    const employees = await User.find({ barId: req.params.barId, userType: 'employee' });
     res.json(employees);
   } catch (err) {
     console.error(err.message);
     res.status(500).send('Server error');
   }
 });
+
+
 
 module.exports = router;

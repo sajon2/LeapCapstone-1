@@ -27,7 +27,7 @@ const app = express();
 
 // Middleware to parse JSON requests
 app.use(express.json());
-
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 // CORS Middleware
 app.use(cors({
   origin: 'http://localhost:3000' // Allow requests from this origin

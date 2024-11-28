@@ -33,6 +33,8 @@ const UserSchema = new Schema({
   barId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Bar',
+    required: function () {
+      return this.userType === 'employee';}
   },
   profilePicture: {
     type: String,
