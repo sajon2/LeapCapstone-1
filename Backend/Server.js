@@ -96,7 +96,7 @@ app.post('/login', async (req, res) => {
     // Check if user exists
     let user = await User.findOne({ username });
     if (!user) {
-      return res.status(400).json({ msg: 'Invalid credentials' });
+      return res.status(400).json({ msg: 'User does not exist' });
     }
 
     // Check password

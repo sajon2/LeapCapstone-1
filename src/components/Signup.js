@@ -10,11 +10,19 @@ const Signup = () => {
   const [dateOfBirth, setDateOfBirth] = useState('');
   const [error, setError] = useState('');
   const { signup } = useAuth();
+  const [confirmPassword, setConfirmPassword] = useState('');
+
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(''); // Clear previous error message
+  
+    if (password !== confirmPassword) {
+      setError('Passwords do not match.');
+      return;
+    }
+  
     try {
       await signup({ username, email, password, dateOfBirth });
       navigate('/login');
@@ -26,6 +34,7 @@ const Signup = () => {
       }
     }
   };
+  
 
   return (
     <Box
@@ -104,6 +113,18 @@ const Signup = () => {
                 _placeholder={{ color: 'gray.400' }}
               />
             </FormControl>
+            <FormControl mb={4}>
+  <FormLabel>Confirm Password</FormLabel>
+  <Input
+    type="password"
+    value={confirmPassword}
+    onChange={(e) => setConfirmPassword(e.target.value)}
+    bg="gray.700"
+    color="white"
+    _placeholder={{ color: 'gray.400' }}
+  />
+</FormControl>
+
             <FormControl mb={6}>
               <FormLabel>Date of Birth</FormLabel>
               <Input

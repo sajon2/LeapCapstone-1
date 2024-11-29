@@ -26,9 +26,21 @@ const Login = () => {
         }
       }
     } catch (error) {
-      setError(error.message);
+      console.error('Login error object:', error); // Log full error for debugging
+    
+      // Check if response and data exist
+      if (error.response && error.response.data) {
+        // Attempt to extract the message
+        setError(error.response.data.message || 'Invalid credentials.');
+      } else if (error.message) {
+        // Network or Axios-specific error
+        setError(error.message);
+      } else {
+        // Generic fallback
+        setError('An unexpected error occurred. Please try again.');
+      }
     }
-  };
+  }      
 
   return (
     <Box

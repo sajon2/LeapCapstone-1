@@ -1,13 +1,25 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Heading, Flex, Text, Image, Button, VStack, Divider } from '@chakra-ui/react';
+import {
+  Box,
+  Heading,
+  Flex,
+  Text,
+  Image,
+  Button,
+  VStack,
+  Divider,
+  Input,
+  Grid,
+  GridItem,
+} from '@chakra-ui/react';
 import axios from 'axios';
 import { useAuth } from '../AuthContext';
-import { useNavigate } from 'react-router-dom';
 
 const UserDashboard = () => {
   const [bars, setBars] = useState([]);
-  const { token } = useAuth();
-  const navigate = useNavigate();
+  const [filteredBars, setFilteredBars] = useState([]);
+  const [search, setSearch] = useState('');
+  const { token, logout } = useAuth(); // Add logout from AuthContext
 
   useEffect(() => {
     const fetchBars = async () => {
@@ -39,6 +51,7 @@ const UserDashboard = () => {
         );
 
         setBars(barsWithQueueStatus);
+        setFilteredBars(barsWithQueueStatus); // Initially set the filtered list to all bars
       } catch (error) {
         console.error('Error fetching bars:', error);
       }
@@ -46,6 +59,20 @@ const UserDashboard = () => {
 
     fetchBars();
   }, [token]);
+
+  const handleSearch = (e) => {
+    const searchValue = e.target.value.toLowerCase();
+    setSearch(searchValue);
+
+    // Filter bars based on search input
+    const filtered = bars.filter(
+      (bar) =>
+        bar.name.toLowerCase().includes(searchValue) ||
+        bar.location.toLowerCase().includes(searchValue)
+    );
+
+    setFilteredBars(filtered);
+  };
 
   const handleJoinQueue = async (barId) => {
     try {
@@ -60,13 +87,10 @@ const UserDashboard = () => {
         }
       );
       console.log('Joined queue successfully:', response.data);
-      // Handle success (e.g., navigate to another page or update UI)
     } catch (error) {
       console.error('Error joining queue:', error.response ? error.response.data : error.message);
-      // Handle error (e.g., show error message to the user)
     }
   };
-  
 
   return (
     <Box position="relative" minHeight="100vh" display="flex" flexDirection="column">
@@ -83,47 +107,79 @@ const UserDashboard = () => {
         <Heading as="h1" size="lg" color="white">
           User Dashboard
         </Heading>
+        <Button colorScheme="whiteAlpha" variant="outline" onClick={logout}>
+          Logout
+        </Button>
+      </Box>
+
+      {/* Search Bar */}
+      <Box bg="gray.100" py={4} px={6} display="flex" justifyContent="center">
+        <Input
+          placeholder="Search venues by name or location"
+          value={search}
+          onChange={handleSearch}
+          width="100%"
+          maxW="600px"
+          bg="white"
+          borderRadius="md"
+          boxShadow="md"
+        />
       </Box>
 
       {/* Middle Section */}
-      <Flex flex="1" direction="column" align="center" justify="center" py={10} px={6} bg="white">
-        <VStack spacing={4} w="full" maxW="xl" align="stretch">
-          <Heading as="h2" size="md" color="gray.700">
-            Bars List
+      <Flex flex="1" direction="column" align="center" py={10} px={6} bg="white">
+        <VStack spacing={4} w="full" maxW="6xl" align="stretch">
+          <Heading as="h2" size="md" color="gray.700" mb={4}>
+            Venues List
           </Heading>
           <Divider />
-          {bars.map((bar) => (
-            <Box key={bar._id} p={4} shadow="md" borderWidth="1px" width="100%">
-              <Flex align="center" justify="space-between">
-                <Box>
-                  <Text fontWeight="bold">{bar.name}</Text>
-                  <Text>{bar.location}</Text>
-                </Box>
-                <Image src={bar.imageUrl} alt={bar.name} boxSize="50px" />
-              </Flex>
-              <Button
-                colorScheme="blue"
-                onClick={() => handleJoinQueue(bar._id)}
-                isDisabled={!bar.isQueueOpen}
-                mt={2}
+          <Grid templateColumns="repeat(auto-fit, minmax(300px, 1fr))" gap={6}>
+            {filteredBars.map((bar) => (
+              <GridItem
+                key={bar._id}
+                p={4}
+                bg="white"
+                borderRadius="md"
+                shadow="md"
+                borderWidth="1px"
               >
-                Join Queue
-              </Button>
-            </Box>
-          ))}
+                <Flex direction="column" align="center" justify="center" h="100%">
+                  <Image
+                    src={`http://localhost:5001${bar.imageUrl}`}
+                    alt={bar.name}
+                    width="100%"
+                    height="150px"
+                    objectFit="cover"
+                    borderRadius="md"
+                  />
+                  <Box mt={4} textAlign="center">
+                    <Text fontSize="lg" fontWeight="bold" color="gray.800">
+                      {bar.name}
+                    </Text>
+                    <Text fontSize="sm" color="gray.600" mt={1}>
+                      {bar.location}
+                    </Text>
+                  </Box>
+                  <Button
+                    mt={4}
+                    size="sm"
+                    colorScheme="blue"
+                    onClick={() => handleJoinQueue(bar._id)}
+                    isDisabled={!bar.isQueueOpen}
+                  >
+                    {bar.isQueueOpen ? 'Join Queue' : 'Queue Closed'}
+                  </Button>
+                </Flex>
+              </GridItem>
+            ))}
+          </Grid>
         </VStack>
       </Flex>
 
       {/* Footer */}
-      <Box
-        bg="gray.900"
-        width="100%"
-        py={4}
-        display="flex"
-        justifyContent="center"
-      >
+      <Box bg="gray.900" width="100%" py={4} display="flex" justifyContent="center">
         <Text color="white" fontSize="sm">
-          Footer Content
+          User Dashboard - All Rights Reserved
         </Text>
       </Box>
     </Box>
