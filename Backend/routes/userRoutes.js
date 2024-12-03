@@ -29,5 +29,28 @@ router.get('/employees', auth, isAdmin, async (req, res) => {
     res.status(500).send('Server error');
   }
 });
+router.put('/update', auth, upload.single('profilePicture'), async (req, res) => {
+  const { username, email, dateOfBirth } = req.body;
+  const profilePicture = req.file ? `/uploads/${req.file.filename}` : undefined;
+
+  try {
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ msg: 'User not found' });
+    }
+
+    // Update user fields
+    if (username) user.username = username;
+    if (email) user.email = email;
+    if (dateOfBirth) user.dateOfBirth = dateOfBirth;
+    if (profilePicture) user.profilePicture = profilePicture;
+
+    await user.save();
+    res.json({ msg: 'Profile updated successfully', user });
+  } catch (error) {
+    console.error('Error updating profile:', error.message);
+    res.status(500).json({ msg: 'Server error' });
+  }
+});
 
 module.exports = router;

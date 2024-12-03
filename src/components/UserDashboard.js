@@ -2,24 +2,27 @@ import React, { useState, useEffect } from 'react';
 import {
   Box,
   Heading,
-  Flex,
-  Text,
-  Image,
-  Button,
-  VStack,
-  Divider,
   Input,
   Grid,
   GridItem,
+  Text,
+  Flex,
+  VStack,
+  Divider,
+  Image,
+  Button,
 } from '@chakra-ui/react';
 import axios from 'axios';
 import { useAuth } from '../AuthContext';
+import { useNavigate } from 'react-router-dom';
+import BottomNavBar from '../components/Users/BottomNavBar'; // Import Bottom Navigation Bar
 
 const UserDashboard = () => {
   const [bars, setBars] = useState([]);
   const [filteredBars, setFilteredBars] = useState([]);
   const [search, setSearch] = useState('');
-  const { token, logout } = useAuth(); // Add logout from AuthContext
+  const { token } = useAuth();
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchBars = async () => {
@@ -30,28 +33,8 @@ const UserDashboard = () => {
           },
         });
 
-        // Fetch the queue status for each bar
-        const barsWithQueueStatus = await Promise.all(
-          response.data.map(async (bar) => {
-            try {
-              const queueResponse = await axios.get(
-                `http://localhost:5001/api/queue/status/${bar._id}`,
-                {
-                  headers: {
-                    Authorization: `Bearer ${token}`,
-                  },
-                }
-              );
-              return { ...bar, isQueueOpen: queueResponse.data.isQueueOpen };
-            } catch (error) {
-              console.error(`Error fetching queue status for bar ${bar._id}:`, error);
-              return { ...bar, isQueueOpen: false };
-            }
-          })
-        );
-
-        setBars(barsWithQueueStatus);
-        setFilteredBars(barsWithQueueStatus); // Initially set the filtered list to all bars
+        setBars(response.data);
+        setFilteredBars(response.data);
       } catch (error) {
         console.error('Error fetching bars:', error);
       }
@@ -61,55 +44,29 @@ const UserDashboard = () => {
   }, [token]);
 
   const handleSearch = (e) => {
-    const searchValue = e.target.value.toLowerCase();
-    setSearch(searchValue);
+    const value = e.target.value.toLowerCase();
+    setSearch(value);
 
-    // Filter bars based on search input
     const filtered = bars.filter(
       (bar) =>
-        bar.name.toLowerCase().includes(searchValue) ||
-        bar.location.toLowerCase().includes(searchValue)
+        bar.name.toLowerCase().includes(value) ||
+        bar.location.toLowerCase().includes(value)
     );
 
     setFilteredBars(filtered);
   };
 
-  const handleJoinQueue = async (barId) => {
-    try {
-      console.log(`Attempting to join queue for bar ID: ${barId}`);
-      const response = await axios.post(
-        `http://localhost:5001/api/queue/${barId}/join`,
-        {}, // Empty payload if not required
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-      console.log('Joined queue successfully:', response.data);
-    } catch (error) {
-      console.error('Error joining queue:', error.response ? error.response.data : error.message);
-    }
+  const handleVenueClick = (barId) => {
+    navigate(`/venue/${barId}`);
   };
 
   return (
-    <Box position="relative" minHeight="100vh" display="flex" flexDirection="column">
+    <Box position="relative" minHeight="100vh" display="flex" flexDirection="column" bg="gray.100">
       {/* Header */}
-      <Box
-        bg="gray.900"
-        width="100%"
-        py={4}
-        px={6}
-        display="flex"
-        justifyContent="space-between"
-        alignItems="center"
-      >
+      <Box bg="gray.900" width="100%" py={4} px={6} display="flex" justifyContent="center">
         <Heading as="h1" size="lg" color="white">
-          User Dashboard
+          Explore Venues
         </Heading>
-        <Button colorScheme="whiteAlpha" variant="outline" onClick={logout}>
-          Logout
-        </Button>
       </Box>
 
       {/* Search Bar */}
@@ -126,8 +83,16 @@ const UserDashboard = () => {
         />
       </Box>
 
-      {/* Middle Section */}
-      <Flex flex="1" direction="column" align="center" py={10} px={6} bg="white">
+      {/* Venue Grid */}
+      <Flex
+        flex="1"
+        direction="column"
+        align="center"
+        py={10}
+        px={6}
+        bg="white"
+        paddingBottom="80px" // Add padding to prevent overlap
+      >
         <VStack spacing={4} w="full" maxW="6xl" align="stretch">
           <Heading as="h2" size="md" color="gray.700" mb={4}>
             Venues List
@@ -142,6 +107,8 @@ const UserDashboard = () => {
                 borderRadius="md"
                 shadow="md"
                 borderWidth="1px"
+                onClick={() => handleVenueClick(bar._id)}
+                cursor="pointer"
               >
                 <Flex direction="column" align="center" justify="center" h="100%">
                   <Image
@@ -160,15 +127,6 @@ const UserDashboard = () => {
                       {bar.location}
                     </Text>
                   </Box>
-                  <Button
-                    mt={4}
-                    size="sm"
-                    colorScheme="blue"
-                    onClick={() => handleJoinQueue(bar._id)}
-                    isDisabled={!bar.isQueueOpen}
-                  >
-                    {bar.isQueueOpen ? 'Join Queue' : 'Queue Closed'}
-                  </Button>
                 </Flex>
               </GridItem>
             ))}
@@ -176,12 +134,8 @@ const UserDashboard = () => {
         </VStack>
       </Flex>
 
-      {/* Footer */}
-      <Box bg="gray.900" width="100%" py={4} display="flex" justifyContent="center">
-        <Text color="white" fontSize="sm">
-          User Dashboard - All Rights Reserved
-        </Text>
-      </Box>
+      {/* Footer Navigation */}
+      <BottomNavBar />
     </Box>
   );
 };

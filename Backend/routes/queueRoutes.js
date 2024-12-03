@@ -4,38 +4,56 @@ const Queue = require('../models/Queue');
 const User = require('../models/User');
 const router = express.Router();
 
+let io;
+
+// Socket.IO initialization function
+const initializeSocket = (server) => {
+  io = require('socket.io')(server, {
+    cors: { origin: "http://localhost:3000", methods: ["GET", "POST"] },
+  });
+
+  io.on('connection', (socket) => {
+    console.log(`Client connected: ${socket.id}`);
+
+    socket.on('disconnect', () => {
+      console.log(`Client disconnected: ${socket.id}`);
+    });
+  });
+};
+
+// Get queue status
 router.get('/status/:barId', auth, async (req, res) => {
   try {
-    console.log(`Request to get queue status for bar ID: ${req.params.barId}`);
     const queue = await Queue.findOne({ barId: req.params.barId });
-    if (!queue) {
-      console.log(`Queue not found for bar ID: ${req.params.barId}`);
-      return res.status(404).json({ msg: 'Queue not found' });
-    }
-    console.log(`Queue status for bar ID: ${req.params.barId}`, queue);
-    res.json({ isQueueOpen: queue.isOpen, queueLength: queue.users.length, queue: queue.users });
+    if (!queue) return res.status(404).json({ msg: 'Queue not found' });
+
+    res.json({
+      isQueueOpen: queue.isOpen,
+      queueLength: queue.users.length,
+      queue: queue.users,
+      
+    });
   } catch (err) {
     console.error('Error getting queue status:', err.message);
     res.status(500).send('Server error');
   }
 });
 
+// Open queue
 router.post('/open/:barId', auth, isAdmin, async (req, res) => {
+  const { maxQueueLength = 250 } = req.body;
   try {
-    console.log(`Opening queue for bar ID: ${req.params.barId}`);
-    console.log('User:', req.user);
-
     let queue = await Queue.findOne({ barId: req.params.barId });
     if (!queue) {
-      console.log(`No existing queue found for bar ID: ${req.params.barId}, creating new queue.`);
-      queue = new Queue({ barId: req.params.barId, isOpen: true, users: [] });
+      queue = new Queue({ barId: req.params.barId, isOpen: true, users: [], maxQueueLength });
     } else {
-      console.log(`Existing queue found for bar ID: ${req.params.barId}, opening queue.`);
       queue.isOpen = true;
       queue.users = [];
+      queue.maxQueueLength = maxQueueLength;
     }
     await queue.save();
-    console.log(`Queue opened for bar ID: ${req.params.barId}`);
+
+    io.emit('queue-status', { barId: req.params.barId, isOpen: true, maxQueueLength });
     res.json({ msg: 'Queue opened', queueLength: queue.users.length });
   } catch (err) {
     console.error('Error opening queue:', err.message);
@@ -43,19 +61,16 @@ router.post('/open/:barId', auth, isAdmin, async (req, res) => {
   }
 });
 
+// Close queue
 router.post('/close/:barId', auth, isAdmin, async (req, res) => {
   try {
-    console.log(`Closing queue for bar ID: ${req.params.barId}`);
-    console.log('User:', req.user);
-
     const queue = await Queue.findOne({ barId: req.params.barId });
-    if (!queue) {
-      console.log(`Queue not found for bar ID: ${req.params.barId}`);
-      return res.status(404).json({ msg: 'Queue not found' });
-    }
+    if (!queue) return res.status(404).json({ msg: 'Queue not found' });
+
     queue.isOpen = false;
     await queue.save();
-    console.log(`Queue closed for bar ID: ${req.params.barId}`);
+
+    io.emit('queue-status', { barId: req.params.barId, isOpen: false });
     res.json({ msg: 'Queue closed' });
   } catch (err) {
     console.error('Error closing queue:', err.message);
@@ -63,24 +78,25 @@ router.post('/close/:barId', auth, isAdmin, async (req, res) => {
   }
 });
 
+// Join queue
 router.post('/:barId/join', auth, async (req, res) => {
   try {
-    console.log(`User attempting to join queue for bar ID: ${req.params.barId}`);
-    console.log('User:', req.user);
-
     const queue = await Queue.findOne({ barId: req.params.barId });
-    if (!queue || !queue.isOpen) {
-      console.log(`Queue not open or not found for bar ID: ${req.params.barId}`);
-      return res.status(400).json({ msg: 'Queue is not open' });
-    }
+    if (!queue || !queue.isOpen) return res.status(400).json({ msg: 'Queue is not open' });
+
     if (queue.users.find((user) => user.userId.toString() === req.user.id.toString())) {
-      console.log(`User already in queue for bar ID: ${req.params.barId}`);
       return res.status(400).json({ msg: 'User already in queue' });
     }
+
+    if (queue.users.length >= queue.maxQueueLength) {
+      return res.status(400).json({ msg: 'Queue is full' });
+    }
+
     const user = await User.findById(req.user.id).select('username');
     queue.users.push({ userId: user._id, name: user.username });
     await queue.save();
-    console.log(`User joined queue for bar ID: ${req.params.barId}`);
+
+    io.emit('queue-updated', { barId: req.params.barId, queue: queue.users, queueLength: queue.users.length });
     res.json({ msg: 'Joined queue', queueLength: queue.users.length });
   } catch (err) {
     console.error('Error joining queue:', err.message);
@@ -88,4 +104,26 @@ router.post('/:barId/join', auth, async (req, res) => {
   }
 });
 
-module.exports = router;
+// Leave queue
+router.post('/:barId/leave', auth, async (req, res) => {
+  try {
+    const queue = await Queue.findOne({ barId: req.params.barId });
+    if (!queue || !queue.isOpen) return res.status(400).json({ msg: 'Queue is not open' });
+
+    const userIndex = queue.users.findIndex((user) => user.userId.toString() === req.user.id.toString());
+    if (userIndex === -1) {
+      return res.status(400).json({ msg: 'User not in queue' });
+    }
+
+    queue.users.splice(userIndex, 1); // Remove user from queue
+    await queue.save();
+
+    io.emit('queue-updated', { barId: req.params.barId, queue: queue.users, queueLength: queue.users.length });
+    res.json({ msg: 'Left queue', queueLength: queue.users.length });
+  } catch (err) {
+    console.error('Error leaving queue:', err.message);
+    res.status(500).send('Server error');
+  }
+});
+
+module.exports = { router, initializeSocket };

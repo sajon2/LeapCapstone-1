@@ -10,7 +10,7 @@ const path = require('path');
 const barRoutes = require('./routes/barRoutes'); // Import the bar routes
 const employeeRoutes = require('./routes/employeeRoutes'); // Import the employee routes
 const userRoutes = require('./routes/userRoutes'); // Import user routes
-const queueRoutes = require('./routes/queueRoutes'); // Import queue routes
+const { router: queueRoutes, initializeSocket } = require('./routes/queueRoutes'); // Import queue routes and socket initializer
 const { auth, isAdmin } = require('./middleware/authMiddleware'); // Import auth and isAdmin middleware
 
 // Create uploads directory if it doesn't exist
@@ -27,14 +27,8 @@ const app = express();
 
 // Middleware to parse JSON requests
 app.use(express.json());
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
-// CORS Middleware
-app.use(cors({
-  origin: 'http://localhost:3000' // Allow requests from this origin
-}));
-
-// Serve static files from the uploads directory
-app.use('/uploads', express.static(uploadDir));
+app.use(cors({ origin: 'http://localhost:3000' })); // CORS Middleware
+app.use('/uploads', express.static(path.join(__dirname, 'uploads'))); // Serve static files
 
 // Connect to MongoDB
 connectDB();
@@ -43,50 +37,54 @@ connectDB();
 app.get('/', (req, res) => res.send('API is running'));
 
 // Signup route
-app.post('/signup', [
-  body('username').not().isEmpty().withMessage('Username is required'),
-  body('email').isEmail().withMessage('Email is invalid'),
-  body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters long'),
-  body('dateOfBirth').not().isEmpty().withMessage('Date of birth is required')
-], async (req, res) => {
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    return res.status(400).json({ errors: errors.array() });
-  }
-
-  const { username, email, password, dateOfBirth } = req.body;
-
-  try {
-    // Check if user already exists
-    let user = await User.findOne({ email });
-    if (user) {
-      return res.status(400).json({ errors: [{ msg: 'User already exists' }] });
+app.post(
+  '/signup',
+  [
+    body('username').not().isEmpty().withMessage('Username is required'),
+    body('email').isEmail().withMessage('Email is invalid'),
+    body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters long'),
+    body('dateOfBirth').not().isEmpty().withMessage('Date of birth is required'),
+  ],
+  async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
     }
 
-    // Hash the password
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
+    const { username, email, password, dateOfBirth } = req.body;
 
-    // Create a new user
-    user = new User({
-      username,
-      email,
-      password: hashedPassword,
-      dateOfBirth,
-      userType: 'user' // Default userType to 'user'
-    });
+    try {
+      // Check if user already exists
+      let user = await User.findOne({ email });
+      if (user) {
+        return res.status(400).json({ errors: [{ msg: 'User already exists' }] });
+      }
 
-    await user.save();
+      // Hash the password
+      const salt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash(password, salt);
 
-    // Generate JWT token
-    const token = await user.generateAuthToken();
+      // Create a new user
+      user = new User({
+        username,
+        email,
+        password: hashedPassword,
+        dateOfBirth,
+        userType: 'user', // Default userType to 'user'
+      });
 
-    res.status(201).json({ msg: 'User registered successfully', token });
-  } catch (err) {
-    console.error(err.message);
-    res.status(500).send('Server error');
+      await user.save();
+
+      // Generate JWT token
+      const token = await user.generateAuthToken();
+
+      res.status(201).json({ msg: 'User registered successfully', token });
+    } catch (err) {
+      console.error(err.message);
+      res.status(500).send('Server error');
+    }
   }
-});
+);
 
 // Login route
 app.post('/login', async (req, res) => {
@@ -140,4 +138,7 @@ app.use('/api/queue', queueRoutes);
 
 // Start the server
 const PORT = process.env.PORT || 5001;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+const server = app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
+// Initialize Socket.IO
+initializeSocket(server);
