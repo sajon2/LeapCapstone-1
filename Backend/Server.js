@@ -27,7 +27,7 @@ const app = express();
 
 // Middleware to parse JSON requests
 app.use(express.json());
-app.use(cors({ origin: 'http://localhost:3000' })); // CORS Middleware
+app.use(cors({ origin: 'http://localhost:8082' })); // CORS Middleware
 app.use('/uploads', express.static(path.join(__dirname, 'uploads'))); // Serve static files
 
 // Connect to MongoDB
