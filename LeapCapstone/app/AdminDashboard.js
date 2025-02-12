@@ -168,7 +168,7 @@ const AdminDashboard = () => {
   };
 
   const handleViewBar = (barId) => {
-     router.push({pathname: `/bar/${barId}`});
+     router.push({pathname: `/Bars/${barId}`});
   };
 
   const renderBarItem = ({ item }) => (

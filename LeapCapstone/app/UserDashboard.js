@@ -21,12 +21,11 @@ const UserDashboard = () => {
   const [search, setSearch] = useState('');
   const { token } = useAuth();
   const router = useRouter();
-    const [isLoading, setIsLoading] = useState(false);
-
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     const fetchBars = async () => {
-      setIsLoading(true); // Start loading
+      setIsLoading(true);
       try {
         const response = await axios.get('http://localhost:5001/api/bars/all', {
           headers: {
@@ -38,9 +37,8 @@ const UserDashboard = () => {
         setFilteredBars(response.data);
       } catch (error) {
         console.error('Error fetching bars:', error);
-        // Handle error appropriately, e.g., show an error message to the user
       } finally {
-        setIsLoading(false); // End loading
+        setIsLoading(false);
       }
     };
 
@@ -59,10 +57,9 @@ const UserDashboard = () => {
 
     setFilteredBars(filtered);
   };
-
   const handleVenueClick = (barId) => {
-     router.push({pathname: `/venue/${barId}`});
-  };
+      router.push(`/Queue/${barId}`);
+  }
 
   const renderBarItem = ({ item }) => (
     <TouchableOpacity
@@ -70,7 +67,7 @@ const UserDashboard = () => {
       onPress={() => handleVenueClick(item._id)}
     >
       <Image
-        source={{ uri: `http://localhost:5001${item.imageUrl}` }}
+        source={{ uri: encodeURI(`http://localhost:5001${item.imageUrl}`) }}
         style={styles.barImage}
       />
       <View style={styles.barInfo}>
@@ -80,7 +77,7 @@ const UserDashboard = () => {
     </TouchableOpacity>
   );
 
-    if (isLoading) {
+  if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#0000ff" />
@@ -113,8 +110,8 @@ const UserDashboard = () => {
           data={filteredBars}
           renderItem={renderBarItem}
           keyExtractor={(item) => item._id}
-          numColumns={2} // Display bars in a grid
-          contentContainerStyle={styles.gridContainer} // Add this
+          numColumns={2}
+          contentContainerStyle={styles.gridContainer}
         />
       </View>
 
@@ -123,6 +120,7 @@ const UserDashboard = () => {
     </View>
   );
 };
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -156,7 +154,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'white',
     padding: 16,
-     paddingBottom: 70,
+    paddingBottom: 70,
   },
   venueListTitle: {
     fontSize: 18,
@@ -170,16 +168,16 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   gridContainer: {
-    justifyContent: 'space-around', // Distribute space around items
-    paddingHorizontal: 10, // Add some horizontal padding
+    justifyContent: 'space-around',
+    paddingHorizontal: 10,
   },
   barItem: {
     backgroundColor: 'white',
     borderRadius: 8,
     overflow: 'hidden',
-    marginBottom: 20, // Space between items
-    width: '48%', // Adjust width to fit 2 items per row with some space
-    marginHorizontal: '1%', // Horizontal margin for spacing
+    marginBottom: 20,
+    width: '48%',
+    marginHorizontal: '1%',
   },
   barImage: {
     width: '100%',
@@ -203,7 +201,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f0f0f0', // Consistent background color
+    backgroundColor: '#f0f0f0',
   },
 });
 
